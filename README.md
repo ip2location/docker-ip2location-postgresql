@@ -46,4 +46,4 @@ Start lookup by following query:
 
 ### Sample Code Reference
 
-http://www.ip2location.com/tutorials
+[http://www.ip2location.com/tutorials](http://www.ip2location.com/tutorials)
