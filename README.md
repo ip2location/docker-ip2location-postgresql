@@ -42,3 +42,8 @@ Create a `inet_to_bigint` function for easier lookup.
 Start lookup by following query:
 
     SELECT * FROM ip2location_database WHERE inet_to_bigint('8.8.8.8') <= ip_to LIMIT 1;
+
+
+### Sample Code Reference
+
+http://www.ip2location.com/tutorials
