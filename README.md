@@ -5,24 +5,22 @@ This is a pre-configured, ready-to-run PostgreSQL with IP2Location Geolocation d
 
 ### Usage
 
-1. Run this image as daemon with your username, password, and download code registered from [IP2Location](https://www.ip2location.com).
+1. Run this image as daemon with your download token and download code registered from [IP2Location](https://www.ip2location.com).
 
-        docker run --name ip2location -d -e POSTGRESQL_PASSWORD=YOUR_POSTGRESQL_PASSWORD -e USERNAME=YOUR_USERNAME -e PASSWORD=YOUR_PASSWORD -e CODE=DOWNLOAD_CODE ip2location/postgresql
+       docker run --name ip2location -d -e POSTGRESQL_PASSWORD=YOUR_POSTGRESQL_PASSWORD -e TOKEN=YOUR_TOKEN -e CODE=DOWNLOAD_CODE ip2location/postgresql
 
     **ENV VARIABLE**
 
     POSTGRESQL_PASSWORD – Enter a password for user admin.
 
-    USERNAME – Email address of the registered download account.
-
-    PASSWORD – Password of the registered download account.
+    TOKEN – Download token form IP2Location account.
 
     CODE – The CSV file download code. You may get the download code from your account panel.
 
 2. The installation may take minutes to hour depending on your internet speed and hardware. You may check the installation status by viewing the container logs. Run the below command to check the container log:
 
         docker logs YOUR_CONTAINER_ID
-  
+
     You should see the line of `=> Setup completed` if you have successfully complete the installation.
 
 ### Connect to it from an application
