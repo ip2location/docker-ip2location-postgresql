@@ -160,6 +160,8 @@ case "$CODE" in
 	;;
 esac
 
+RESPONSE="$(sudo -u postgres psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;' ip2location_database 2>&1)"
+
 if [ ! -z "$(echo $CODE | grep 'IPV6')" ]; then
 	RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from decimal(39,0) NOT NULL,ip_to decimal(39,0) NOT NULL,country_code CHARACTER(2) NOT NULL,country_name varchar(64) NOT NULL'"$FIELDS"');' ip2location_database 2>&1)"
 else

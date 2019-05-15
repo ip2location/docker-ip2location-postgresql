@@ -7,7 +7,10 @@ RUN apt-get update && apt-get -yq install wget unzip sudo gnupg
 RUN wget --no-check-certificate https://www.postgresql.org/media/keys/ACCC4CF8.asc
 RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main' > /etc/apt/sources.list.d/pgdg.list
 RUN apt-key add ACCC4CF8.asc
-RUN apt-get update && apt-get -yq install postgresql-10
+RUN apt-get update && apt-get -yq install postgresql-10 postgresql-server-dev-10 build-essential libxml2-dev libgdal-dev libproj-dev libjson-c-dev xsltproc docbook-xsl docbook-mathml gcc
+RUN wget https://download.osgeo.org/postgis/source/postgis-2.5.2.tar.gz
+RUN tar xvzf postgis-2.5.2.tar.gz
+RUN cd postgis-2.5.2 && ./configure && make && make install
 
 # Update PostgreSQL settings
 RUN echo "" >> /etc/postgresql/10/main/pg_hba.conf
