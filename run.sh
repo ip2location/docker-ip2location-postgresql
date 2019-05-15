@@ -171,7 +171,7 @@ fi
 [ -z "$(echo $RESPONSE | grep 'CREATE TABLE')" ] && error '[ERROR]' || success '[OK]'
 
 sudo -u postgres psql -c 'CREATE INDEX idx_ip_to ON ip2location_database_tmp USING btree (ip_to) WITH (FILLFACTOR=100);' ip2location_database > /dev/null
-sudo -u postgres psql -c 'CREATE INDEX idx_ip_range ON public.ip2location_database using GIST(int8range(ip_from, ip_to));' ip2location_database > /dev/null
+sudo -u postgres psql -c 'CREATE INDEX idx_ip_range ON public.ip2location_database_tmp using GIST(int8range(ip_from, ip_to));' ip2location_database > /dev/null
 
 echo -n ' > [PostgreSQL] Import CSV data into "ip2location_database_tmp" '
 
