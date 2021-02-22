@@ -17,7 +17,7 @@ mkdir /_tmp
 cd /_tmp
 
 echo -n ' > Download IP2Location package '
-wget -O database.zip -q --user-agent="Docker-IP2Location/PostgreSQL" http://www.ip2location.com/download?token=${TOKEN}\&productcode=${CODE} 2>&1
+wget -O database.zip -q --user-agent="Docker-IP2Location/PostgreSQL" http://www.ip2location.com/download?token=${TOKEN}\&productcode=${CODE}
 
 [ ! -f database.zip ] && error '[ERROR]'
 
@@ -27,20 +27,22 @@ wget -O database.zip -q --user-agent="Docker-IP2Location/PostgreSQL" http://www.
 
 [ $(wc -c < database.zip) -lt 102400 ] && error '[ERROR]'
 
+success '[OK]'
+
 echo -n ' > Decompress downloaded package '
 
 unzip -q -o database.zip
 
-if [ "$CODE" == "DB1CSV" ]; then
+if [ "$CODE" == "DB1" ]; then
 	CSV="$(find . -name 'IPCountry.csv')"
 
-elif [ "$CODE" == "DB2CSV" ]; then
+elif [ "$CODE" == "DB2" ]; then
 	CSV="$(find . -name 'IPISP.csv')"
 
 elif [ ! -z "$(echo $CODE | grep 'LITE')" ]; then
 	CSV="$(find . -name 'IP*.CSV')"
 
-elif [ ! -z "$(echo $CODE | grep 'CSVIPV6')" ]; then
+elif [ ! -z "$(echo $CODE | grep 'IPV6')" ]; then
 	CSV="$(find . -name 'IPV6-COUNTRY*.CSV')"
 
 elif [ ! -z "$(echo $CODE | grep 'PX')" ]; then
@@ -50,14 +52,14 @@ else
 	CSV="$(find . -name 'IP-COUNTRY*.CSV')"
 fi
 
-if [ -z "$CSV" ]; then
+if [ -z "$" ]; then
 	echo "=> Downloaded package is corrupted"
 	exit 1
 fi
 
-[ -z "$CSV" ] && error '[ERROR]' || success '[OK]'
+[ -z "$" ] && error '[ERROR]' || success '[OK]'
 
-service postgresql start >/dev/null 2>&1
+service postgresql start >/dev/null
 
 echo -n ' > [PostgreSQL] Create database "ip2location_database" '
 
@@ -68,130 +70,130 @@ RESPONSE="$(sudo -u postgres createdb ip2location_database 2>&1)"
 echo -n ' > [PostgreSQL] Create table "ip2location_database_tmp" '
 
 case "$CODE" in
-	DB1CSV|DB1LITECSV|DB1CSVIPV6|DB1LITECSVIPV6 )
+	DB1|DB1LITE|DB1IPV6|DB1LITEIPV6 )
 		FIELDS=''
 	;;
-	DB2CSV|DB2CSVIPV6 )
+	DB2|DB2IPV6 )
 		FIELDS=',isp varchar(255) NOT NULL'
 	;;
 
-	DB3CSV|DB3LITECSV|DB3CSVIPV6|DB3LITECSVIPV6 )
+	DB3|DB3LITE|DB3IPV6|DB3LITEIPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL'
 	;;
 
-	DB4CSV|DB4CSVIPV6 )
+	DB4|DB4IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL'
 	;;
 
-	DB5CSV|DB5LITECSV|DB5CSVIPV6|DB5LITECSVIPV6 )
+	DB5|DB5LITE|DB5IPV6|DB5LITEIPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL'
 	;;
 
-	DB6CSV|DB6CSVIPV6 )
+	DB6|DB6IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL'
 	;;
 
-	DB7CSV|DB7CSVIPV6 )
+	DB7|DB7IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB8CSV|DB8CSVIPV6 )
+	DB8|DB8IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB9CSV|DB9LITECSV|DB9CSVIPV6|DB9LITECSVIPV6 )
+	DB9|DB9LITE|DB9IPV6|DB9LITEIPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL'
 	;;
 
-	DB10CSV|DB10CSVIPV6 )
+	DB10|DB10IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB11CSV|DB11LITECSV|DB11CSVIPV6|DB11LITECSVIPV6 )
+	DB11|DB11LITE|DB11IPV6|DB11LITEIPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL'
 	;;
 
-	DB12CSV|DB12CSVIPV6 )
+	DB12|DB12IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB13CSV|DB13CSVIPV6 )
+	DB13|DB13IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,time_zone varchar(8) NULL DEFAULT NULL,net_speed varchar(8) NOT NULL'
 	;;
 
-	DB14CSV|DB14CSVIPV6 )
+	DB14|DB14IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL'
 	;;
 
-	DB15CSV|DB15CSVIPV6 )
+	DB15|DB15IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL'
 	;;
 
-	DB16CSV|DB16CSVIPV6 )
+	DB16|DB16IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL'
 	;;
 
-	DB17CSV|DB17CSVIPV6 )
+	DB17|DB17IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,time_zone varchar(8) NULL DEFAULT NULL,net_speed varchar(8) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL'
 	;;
 
-	DB18CSV|DB18CSVIPV6 )
+	DB18|DB18IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL'
 	;;
 
-	DB19CSV|DB19CSVIPV6 )
+	DB19|DB19IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL'
 	;;
 
-	DB20CSV|DB20CSVIPV6 )
+	DB20|DB20IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL'
 	;;
 
-	DB21CSV|DB21CSVIPV6 )
+	DB21|DB21IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,elevation integer NOT NULL'
 	;;
 
-	DB22CSV|DB22CSVIPV6 )
+	DB22|DB22IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,elevation integer NOT NULL'
 	;;
 
-	DB23CSV|DB23CSVIPV6 )
+	DB23|DB23IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,usage_type varchar(11) NOT NULL'
 	;;
 
-	DB24CSV|DB24CSVIPV6 )
+	DB24|DB24IPV6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,elevation integer NOT NULL,usage_type varchar(11) NOT NULL'
 	;;
 
-	PX1CSV|PX1LITECSV )
+	PX1|PX1LITECSV )
 		FIELDS=',country_code char(2) NOT NULL,country_name varchar(64) NOT NULL'
 	;;
 
-	PX2CSV|PX2LITECSV )
+	PX2|PX2LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL'
 	;;
 
-	PX3CSV|PX3LITECSV )
+	PX3|PX3LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL,region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL'
 	;;
 
-	PX4CSV|PX4LITECSV )
+	PX4|PX4LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL,region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL'
 	;;
 
-	PX5CSV|PX5LITECSV )
+	PX5|PX5LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL,region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	PX6CSV|PX6LITECSV )
+	PX6|PX6LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL,region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,usage_type varchar(11) NOT NULL'
 	;;
 
-	PX7CSV|PX7LITECSV )
+	PX7|PX7LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL,region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,usage_type varchar(11) NOT NULL,asn varchar(6) NOT NULL,"as" varchar(256)'
 	;;
 
-	PX8CSV|PX8LITECSV )
+	PX8|PX8LITECSV )
 		FIELDS=',proxy_type varchar(3) NOT NULL, country_code char(2) NOT NULL,country_name varchar(64) NOT NULL,region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,usage_type varchar(11) NOT NULL,asn varchar(6) NOT NULL,"as" varchar(256),last_seen integer NOT NULL'
 	;;
 esac
@@ -211,23 +213,17 @@ sudo -u postgres psql -c 'CREATE INDEX idx_ip_range ON public.ip2location_databa
 
 echo -n ' > [PostgreSQL] Import CSV data into "ip2location_database_tmp" '
 
-RESPONSE="$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\'''/_tmp/$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database 2>&1)"
+RESPONSE="$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\'''/_tmp/$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database  2>&1)"
 
 [ -z "$(echo $RESPONSE | grep 'COPY')" ] && error '[ERROR]' || success '[OK]'
 
-echo ' > [PostgreSQL] Drop table "ip2location_database" '
-
-RESPONSE="$(sudo -u postgres psql -c 'DROP TABLE IF EXISTS ip2location_database;' ip2location_database 2>&1)"
-
-[ ! -z "$(echo $RESPONSE | grep 'ERROR')" ] && error '[ERROR]' || success '[OK]'
-
-echo ' > [PostgreSQL] Rename table "ip2location_database_tmp" to "ip2location_database" '
+echo -n ' > [PostgreSQL] Rename table "ip2location_database_tmp" to "ip2location_database" '
 
 RESPONSE="$(sudo -u postgres psql -c 'ALTER TABLE ip2location_database_tmp RENAME TO ip2location_database;' ip2location_database 2>&1)"
 
 [ ! -z "$(echo $RESPONSE | grep 'ERROR')" ] &&  error '[ERROR]' || success '[OK]'
 
-echo ' > [PostgreSQL] Update PostgreSQL password for user "postgres" '
+echo -n ' > [PostgreSQL] Update PostgreSQL password for user "postgres" '
 
 if [ "$POSTGRESQL_PASSWORD" != "FALSE" ]; then
 	DBPASS="$POSTGRESQL_PASSWORD"
@@ -235,8 +231,10 @@ else
 	DBPASS="$(< /dev/urandom tr -dc A-Za-z0-9 | head -c8)"	
 fi
 
+success '[OK]'
+
 sudo -u postgres psql -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '$DBPASS';" > /dev/null
-sudo -u postgres psql -U postgres -d postgres -c 'DROP FUNCTION IF EXISTS inet_to_bigint(inet);CREATE OR REPLACE FUNCTION inet_to_bigint(inet) RETURNS bigint AS $$ SELECT $1 - inet '\''0.0.0.0'\'' $$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;' > /dev/null
+sudo -u postgres psql -U postgres -d postgres -c 'CREATE FUNCTION inet_to_bigint(inet) RETURNS bigint AS $$ SELECT $1 - inet '\''0.0.0.0'\'' $$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;' > /dev/null
 
 echo " > Setup completed"
 echo ""
@@ -248,7 +246,7 @@ echo ""
 
 rm -rf /_tmp
 echo '' > /setup_done
-service postgresql stop >/dev/null 2>&1
+service postgresql stop >/dev/null
 sleep 5
 
 cd
