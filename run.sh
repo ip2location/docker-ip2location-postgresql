@@ -5,7 +5,11 @@
 error() { echo -e "\e[91m$1\e[m"; exit 0; }
 success() { echo -e "\e[92m$1\e[m"; }
 
-if [ "$TOKEN" == "FALSE" ] || [ "$CODE" == "FALSE" ] || [ -f /setup_done ]; then
+if [ -f /setup_done ]; then
+	tail -f /dev/null
+fi
+
+if [ "$TOKEN" == "FALSE" ] || [ "$CODE" == "FALSE" ]; then
 	exit 0
 fi
 
