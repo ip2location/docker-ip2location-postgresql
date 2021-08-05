@@ -269,4 +269,4 @@ sleep 5
 
 cd
 
-su postgres -c "/usr/lib/postgresql/12/bin/postgres -D /var/lib/postgresql/12/main -c config_file=/etc/postgresql/12/main/postgresql.conf 2> /var/log/postgresql/postgresql-12-main.log"
+su postgres -c "/usr/lib/postgresql/11/bin/postgres -D /var/lib/postgresql/11/main -c config_file=/etc/postgresql/11/main/postgresql.conf 2> /var/log/postgresql/postgresql-11-main.log"
