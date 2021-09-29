@@ -3,63 +3,99 @@
 error() { echo -e "\e[91m$1\e[m"; exit 0; }
 success() { echo -e "\e[92m$1\e[m"; }
 
-if [ -f /setup_done ]; then
+USER_AGENT="Mozilla/5.0+(compatible; IP2Location/PostgreSQL-Docker; https://hub.docker.com/r/ip2location/postgresql)"
+CODES=("DB1-LITE DB3-LITE DB5-LITE DB9-LITE DB11-LITE DB1 DB2 DB3 DB4 DB5 DB6 DB7 DB8 DB9 DB10 DB11 DB12 DB13 DB14 DB15 DB16 DB17 DB18 DB19 DB20 DB21 DB22 DB23 DB24 DB25")
+
+if [ -f /ip2location.conf ]; then
+	service postgresql start >/dev/null 2>&1
 	tail -f /dev/null
 fi
 
-if [ "$TOKEN" == "FALSE" ] || [ "$CODE" == "FALSE" ]; then
-	exit 0
+if [ "$TOKEN" == "FALSE" ]; then
+	error "Missing download token."
 fi
 
-echo -n ' > Create directory /_tmp '
+if [ "$CODE" == "FALSE" ]; then
+	error "Missing database code."
+fi
+
+if [ "$POSTGRESQL_PASSWORD" == "FALSE" ]; then
+	POSTGRESQL_PASSWORD="$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c${1:-12})"
+fi
+
+FOUND=""
+for i in "${CODES[@]}"; do
+	if [ "$i" == "$CODE" ] ; then
+		FOUND="$CODE"
+	fi
+done
+
+if [ -z $FOUND == "" ]; then
+	error "Download code is invalid."
+fi
+
+CODE=$(echo $CODE | sed 's/-//')
+
+echo -n " > Create directory /_tmp "
+
 mkdir /_tmp
 
-[ ! -d /_tmp ] && error '[ERROR]' || success '[OK]'
+[ ! -d /_tmp ] && error "[ERROR]" || success "[OK]"
 
 cd /_tmp
 
-echo -n ' > Download IP2Location package '
-wget -O database.zip -q --user-agent="Docker-IP2Location/PostgreSQL" http://www.ip2location.com/download?token=${TOKEN}\&productcode=${CODE}
+echo -n " > Download IP2Location database "
 
-[ ! -f database.zip ] && error '[ERROR]'
+if [ "$IP_TYPE" == "IPV4" ]; then
+	wget -O ipv4.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSV" > /dev/null 2>&1
 
-[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error '[DENIED]'
+	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' database.zip)" ] && error "[QUOTA EXCEEDED]"
 
-[ ! -z "$(grep '5 times' database.zip)" ] && error '[QUOTE EXCEEDED]'
+	RESULT=$(unzip -t ipv4.zip >/dev/null 2>&1)
 
-[ $(wc -c < database.zip) -lt 102400 ] && error '[ERROR]'
+	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
+elif [ "$IP_TYPE" == "IPV6" ]; then
+	wget -O ipv6.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSVIPV6" > /dev/null 2>&1
 
-success '[OK]'
+	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' database.zip)" ] && error "[QUOTA EXCEEDED]"
 
-echo -n ' > Decompress downloaded package '
+	RESULT=$(unzip -t ipv6.zip >/dev/null 2>&1)
 
-unzip -q -o database.zip
-
-if [ "$CODE" == "DB1" ]; then
-	CSV="$(find . -name 'IPCountry.csv')"
-
-elif [ "$CODE" == "DB2" ]; then
-	CSV="$(find . -name 'IPISP.csv')"
-
-elif [ ! -z "$(echo $CODE | grep 'LITE')" ]; then
-	CSV="$(find . -name 'IP*.CSV')"
-
-elif [ ! -z "$(echo $CODE | grep 'IPV6')" ]; then
-	CSV="$(find . -name 'IPV6-COUNTRY*.CSV')"
-
-elif [ ! -z "$(echo $CODE | grep 'PX')" ]; then
-	CSV="$(find . -name 'IP2PROXY*.CSV')"
-
+	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
 else
-	CSV="$(find . -name 'IP-COUNTRY*.CSV')"
+	wget -O ipv4.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSV" > /dev/null 2>&1
+	wget -O ipv6.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSVIPV6" > /dev/null 2>&1
+
+	[ ! -z "$(grep 'NO PERMISSION' ipv4.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' ipv4.zip)" ] && error "[QUOTA EXCEEDED]"
+
+	[ ! -z "$(grep 'NO PERMISSION' ipv6.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' ipv6.zip)" ] && error "[QUOTA EXCEEDED]"
+
+	RESULT=$(unzip -t ipv4.zip >/dev/null 2>&1)
+	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
+
+	RESULT=$(unzip -t ipv6.zip >/dev/null 2>&1)
+	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
 fi
 
-if [ -z "$" ]; then
-	echo "=> Downloaded package is corrupted"
-	exit 1
-fi
+success "[OK]"
 
-[ -z "$" ] && error '[ERROR]' || success '[OK]'
+for ZIP in $(ls | grep '.zip'); do
+	CSV=$(unzip -l $ZIP | grep '.CSV' | awk '{ print $4 }')
+
+	echo -n " > Decompress $CSV from $ZIP "
+
+	unzip -jq $ZIP $CSV
+
+	if [ ! -f $CSV ]; then
+		error "[ERROR]"
+	fi
+
+	success "[OK]"
+done
 
 service postgresql start >/dev/null
 
@@ -72,102 +108,102 @@ RESPONSE="$(sudo -u postgres createdb ip2location_database 2>&1)"
 echo -n ' > [PostgreSQL] Create table "ip2location_database_tmp" '
 
 case "$CODE" in
-	DB1|DB1LITE|DB1IPV6|DB1LITEIPV6 )
+	DB1|DB1LITE )
 		FIELDS=''
 	;;
-	DB2|DB2IPV6 )
+	DB2 )
 		FIELDS=',isp varchar(255) NOT NULL'
 	;;
 
-	DB3|DB3LITE|DB3IPV6|DB3LITEIPV6 )
+	DB3|DB3LITE )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL'
 	;;
 
-	DB4|DB4IPV6 )
+	DB4 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL'
 	;;
 
-	DB5|DB5LITE|DB5IPV6|DB5LITEIPV6 )
+	DB5|DB5LITE )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL'
 	;;
 
-	DB6|DB6IPV6 )
+	DB6 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL'
 	;;
 
-	DB7|DB7IPV6 )
+	DB7 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB8|DB8IPV6 )
+	DB8 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB9|DB9LITE|DB9IPV6|DB9LITEIPV6 )
+	DB9|DB9LITE )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL'
 	;;
 
-	DB10|DB10IPV6 )
+	DB10 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB11|DB11LITE|DB11IPV6|DB11LITEIPV6 )
+	DB11|DB11LITE )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL'
 	;;
 
-	DB12|DB12IPV6 )
+	DB12 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL'
 	;;
 
-	DB13|DB13IPV6 )
+	DB13 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,time_zone varchar(8) NULL DEFAULT NULL,net_speed varchar(8) NOT NULL'
 	;;
 
-	DB14|DB14IPV6 )
+	DB14 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL'
 	;;
 
-	DB15|DB15IPV6 )
+	DB15 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL'
 	;;
 
-	DB16|DB16IPV6 )
+	DB16 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL'
 	;;
 
-	DB17|DB17IPV6 )
+	DB17 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,time_zone varchar(8) NULL DEFAULT NULL,net_speed varchar(8) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL'
 	;;
 
-	DB18|DB18IPV6 )
+	DB18 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL'
 	;;
 
-	DB19|DB19IPV6 )
+	DB19 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL'
 	;;
 
-	DB20|DB20IPV6 )
+	DB20 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL'
 	;;
 
-	DB21|DB21IPV6 )
+	DB21 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,elevation integer NOT NULL'
 	;;
 
-	DB22|DB22IPV6 )
+	DB22 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,elevation integer NOT NULL'
 	;;
 
-	DB23|DB23IPV6 )
+	DB23 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,usage_type varchar(11) NOT NULL'
 	;;
 
-	DB24|DB24IPV6 )
+	DB24 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,elevation integer NOT NULL,usage_type varchar(11) NOT NULL'
 	;;
 
-	DB25|DB25IPV6 )
+	DB25 )
 		FIELDS=',region_name varchar(128) NOT NULL,city_name varchar(128) NOT NULL,latitude varchar(20) NOT NULL,longitude varchar(20) NOT NULL,zip_code varchar(30) NULL DEFAULT NULL,time_zone varchar(8) NULL DEFAULT NULL,isp varchar(255) NOT NULL,domain varchar(128) NOT NULL,net_speed varchar(8) NOT NULL,idd_code varchar(5) NOT NULL,area_code varchar(30) NOT NULL,weather_station_code varchar(10) NOT NULL,weather_station_name varchar(128) NOT NULL,mcc varchar(128) NULL DEFAULT NULL,mnc varchar(128) NULL DEFAULT NULL,mobile_brand varchar(128) NULL DEFAULT NULL,elevation integer NOT NULL,usage_type varchar(11) NOT NULL,address_type char(1) NOT NULL,category varchar(10) NOT NULL'
 	;;
 
@@ -216,24 +252,16 @@ case "$CODE" in
 	;;
 esac
 
-RESPONSE="$(sudo -u postgres psql -c 'CREATE EXTENSION IF NOT EXISTS postgis;' ip2location_database 2>&1)"
-
-if [ ! -z "$(echo $CODE | grep 'IPV6')" ]; then
-	RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from decimal(39,0) NOT NULL,ip_to decimal(39,0) NOT NULL,country_code CHARACTER(2) NOT NULL,country_name varchar(64) NOT NULL'"$FIELDS"');' ip2location_database 2>&1)"
-else
-	RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from bigint NOT NULL,ip_to bigint NOT NULL,country_code CHARACTER(2) NOT NULL,country_name varchar(64) NOT NULL'"$FIELDS"');' ip2location_database 2>&1)"
-fi
+RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from decimal(39,0) NOT NULL,ip_to decimal(39,0) NOT NULL,country_code character(2) NOT NULL,country_name varchar(64) NOT NULL '$FIELDS', CONSTRAINT idx_key PRIMARY KEY (ip_to));' ip2location_database 2>&1)"
 
 [ -z "$(echo $RESPONSE | grep 'CREATE TABLE')" ] && error '[ERROR]' || success '[OK]'
 
-sudo -u postgres psql -c 'CREATE INDEX idx_ip_to ON ip2location_database_tmp USING btree (ip_to) WITH (FILLFACTOR=100);' ip2location_database > /dev/null
-sudo -u postgres psql -c 'CREATE INDEX idx_ip_range ON public.ip2location_database_tmp using GIST(int8range(ip_from, ip_to));' ip2location_database > /dev/null
-
-echo -n ' > [PostgreSQL] Import CSV data into "ip2location_database_tmp" '
-
-RESPONSE="$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\'''/_tmp/$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database  2>&1)"
-
-[ -z "$(echo $RESPONSE | grep 'COPY')" ] && error '[ERROR]' || success '[OK]'
+for CSV in $(ls | grep '.CSV'); do
+	echo -n " > [PostgreSQL] Load $CSV into database "
+	RESPONSE=$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\''/_tmp/'$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database 2>&1)
+	
+	[ -z "$(echo $RESPONSE | grep 'COPY')" ] && error '[ERROR]' || success '[OK]'
+done
 
 echo -n ' > [PostgreSQL] Rename table "ip2location_database_tmp" to "ip2location_database" '
 
@@ -241,17 +269,7 @@ RESPONSE="$(sudo -u postgres psql -c 'ALTER TABLE ip2location_database_tmp RENAM
 
 [ ! -z "$(echo $RESPONSE | grep 'ERROR')" ] &&  error '[ERROR]' || success '[OK]'
 
-echo -n ' > [PostgreSQL] Update PostgreSQL password for user "postgres" '
-
-if [ "$POSTGRESQL_PASSWORD" != "FALSE" ]; then
-	DBPASS="$POSTGRESQL_PASSWORD"
-else
-	DBPASS="$(< /dev/urandom tr -dc A-Za-z0-9 | head -c8)"	
-fi
-
-success '[OK]'
-
-sudo -u postgres psql -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '$DBPASS';" > /dev/null
+sudo -u postgres psql -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '$POSTGRESQL_PASSWORD';" > /dev/null
 sudo -u postgres psql -U postgres -d postgres -c 'CREATE FUNCTION inet_to_bigint(inet) RETURNS bigint AS $$ SELECT $1 - inet '\''0.0.0.0'\'' $$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;' > /dev/null
 
 echo " > Setup completed"
@@ -259,14 +277,21 @@ echo ""
 echo " > You can now connect to this PostgreSQL Server using:"
 echo ""
 echo "   psql -h HOST -p PORT --username=postgres"
-echo "   Enter the password '$DBPASS' when prompted"
+echo "   Password: $POSTGRESQL_PASSWORD"
 echo ""
 
 rm -rf /_tmp
-echo '' > /setup_done
+
+echo "POSTGRESQL_PASSWORD=$POSTGRESQL_PASSWORD" > /ip2location.conf
+echo "TOKEN=$TOKEN" >> /ip2location.conf
+echo "CODE=$CODE" >> /ip2location.conf
+echo "IP_TYPE=$IP_TYPE" >> /ip2location.conf
+
 service postgresql stop >/dev/null
 sleep 5
 
 cd
 
-su postgres -c "/usr/lib/postgresql/11/bin/postgres -D /var/lib/postgresql/11/main -c config_file=/etc/postgresql/11/main/postgresql.conf 2> /var/log/postgresql/postgresql-11-main.log"
+su postgres -c "/usr/lib/postgresql/11/bin/postgres -D /var/lib/postgresql/11/main -c config_file=/etc/postgresql/11/main/postgresql.conf 2> /var/log/postgresql/postgresql-11-main.log" >/dev/null 2>&1
+
+tail -f /dev/null
