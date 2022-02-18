@@ -45,17 +45,8 @@ mkdir /_tmp
 cd /_tmp
 
 echo -n " > Download IP2Location database "
-
-if [ "$IP_TYPE" == "IPV4" ]; then
-	wget -O ipv4.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSV" > /dev/null 2>&1
-
-	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
-	[ ! -z "$(grep '5 TIMES' database.zip)" ] && error "[QUOTA EXCEEDED]"
-
-	RESULT=$(unzip -t ipv4.zip >/dev/null 2>&1)
-
-	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
-elif [ "$IP_TYPE" == "IPV6" ]; then
+	
+if [ "$IP_TYPE" == "IPV6" ]; then
 	wget -O ipv6.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSVIPV6" > /dev/null 2>&1
 
 	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
@@ -66,18 +57,12 @@ elif [ "$IP_TYPE" == "IPV6" ]; then
 	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
 else
 	wget -O ipv4.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSV" > /dev/null 2>&1
-	wget -O ipv6.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSVIPV6" > /dev/null 2>&1
 
-	[ ! -z "$(grep 'NO PERMISSION' ipv4.zip)" ] && error "[DENIED]"
-	[ ! -z "$(grep '5 TIMES' ipv4.zip)" ] && error "[QUOTA EXCEEDED]"
-
-	[ ! -z "$(grep 'NO PERMISSION' ipv6.zip)" ] && error "[DENIED]"
-	[ ! -z "$(grep '5 TIMES' ipv6.zip)" ] && error "[QUOTA EXCEEDED]"
+	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' database.zip)" ] && error "[QUOTA EXCEEDED]"
 
 	RESULT=$(unzip -t ipv4.zip >/dev/null 2>&1)
-	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
 
-	RESULT=$(unzip -t ipv6.zip >/dev/null 2>&1)
 	[ $? -ne 0 ] && error "[FILE CORRUPTED]"
 fi
 
@@ -256,6 +241,12 @@ RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_
 
 [ -z "$(echo $RESPONSE | grep 'CREATE TABLE')" ] && error '[ERROR]' || success '[OK]'
 
+rm -f IP2LOCATION-COUNTRY.CSV
+
+if [ -f IPCountry.csv ]; then
+	mv IPCountry.csv IP-COUNTRY.CSV
+fi
+
 for CSV in $(ls | grep '.CSV'); do
 	echo -n " > [PostgreSQL] Load $CSV into database "
 	RESPONSE=$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\''/_tmp/'$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database 2>&1)
@@ -269,8 +260,8 @@ RESPONSE="$(sudo -u postgres psql -c 'ALTER TABLE ip2location_database_tmp RENAM
 
 [ ! -z "$(echo $RESPONSE | grep 'ERROR')" ] &&  error '[ERROR]' || success '[OK]'
 
-sudo -u postgres psql -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '$POSTGRESQL_PASSWORD';" > /dev/null
-sudo -u postgres psql -U postgres -d postgres -c 'CREATE FUNCTION inet_to_bigint(inet) RETURNS bigint AS $$ SELECT $1 - inet '\''0.0.0.0'\'' $$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;' > /dev/null
+sudo -u postgres psql -d ip2location_database -c "CREATE FUNCTION inet_to_bigint(inet) RETURNS bigint AS \$\$ SELECT \$1 - '0.0.0.0'::inet \$\$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;" > /dev/null
+sudo -u postgres psql -d postgres -c "ALTER USER postgres WITH PASSWORD '$POSTGRESQL_PASSWORD';" > /dev/null
 
 echo " > Setup completed"
 echo ""
@@ -287,11 +278,6 @@ echo "TOKEN=$TOKEN" >> /ip2location.conf
 echo "CODE=$CODE" >> /ip2location.conf
 echo "IP_TYPE=$IP_TYPE" >> /ip2location.conf
 
-service postgresql stop >/dev/null
-sleep 5
-
-cd
-
-su postgres -c "/usr/lib/postgresql/11/bin/postgres -D /var/lib/postgresql/11/main -c config_file=/etc/postgresql/11/main/postgresql.conf 2> /var/log/postgresql/postgresql-11-main.log" >/dev/null 2>&1
-
+cd /
+su postgres -c "/usr/lib/postgresql/13/bin/postgres -D /var/lib/postgresql/13/main -c config_file=/etc/postgresql/13/main/postgresql.conf 2> /var/log/postgresql/postgresql-main.log" >/dev/null 2>&1
 tail -f /dev/null
