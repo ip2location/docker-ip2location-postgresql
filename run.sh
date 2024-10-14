@@ -49,8 +49,8 @@ echo -n " > Download IP2Location database "
 if [ "$IP_TYPE" == "IPV6" ]; then
 	wget -O ipv6.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSVIPV6" > /dev/null 2>&1
 
-	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
-	[ ! -z "$(grep '5 TIMES' database.zip)" ] && error "[QUOTA EXCEEDED]"
+	[ ! -z "$(grep 'NO PERMISSION' ipv6.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' ipv6.zip)" ] && error "[QUOTA EXCEEDED]"
 
 	RESULT=$(unzip -t ipv6.zip >/dev/null 2>&1)
 
@@ -58,8 +58,8 @@ if [ "$IP_TYPE" == "IPV6" ]; then
 else
 	wget -O ipv4.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSV" > /dev/null 2>&1
 
-	[ ! -z "$(grep 'NO PERMISSION' database.zip)" ] && error "[DENIED]"
-	[ ! -z "$(grep '5 TIMES' database.zip)" ] && error "[QUOTA EXCEEDED]"
+	[ ! -z "$(grep 'NO PERMISSION' ipv4.zip)" ] && error "[DENIED]"
+	[ ! -z "$(grep '5 TIMES' ipv4.zip)" ] && error "[QUOTA EXCEEDED]"
 
 	RESULT=$(unzip -t ipv4.zip >/dev/null 2>&1)
 
@@ -69,11 +69,11 @@ fi
 success "[OK]"
 
 for ZIP in $(ls | grep '.zip'); do
-	CSV=$(unzip -l $ZIP | grep '.CSV' | awk '{ print $4 }')
+	CSV=$(unzip -l $ZIP | sort -nr | grep -Eio 'IP(V6)?.*CSV' | head -n 1)
 
-	echo -n " > Decompress $CSV from $ZIP "
+	echo -n " > Decompress $CSV from $ZIP"
 
-	unzip -jq $ZIP $CSV
+	unzip -oq $ZIP $CSV
 
 	if [ ! -f $CSV ]; then
 		error "[ERROR]"
@@ -241,13 +241,7 @@ RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_
 
 [ -z "$(echo $RESPONSE | grep 'CREATE TABLE')" ] && error '[ERROR]' || success '[OK]'
 
-rm -f IP2LOCATION-COUNTRY.CSV
-
-if [ -f IPCountry.csv ]; then
-	mv IPCountry.csv IP-COUNTRY.CSV
-fi
-
-for CSV in $(ls | grep '.CSV'); do
+for CSV in $(ls | grep -i '.CSV'); do
 	echo -n " > [PostgreSQL] Load $CSV into database "
 	RESPONSE=$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\''/_tmp/'$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database 2>&1)
 	
