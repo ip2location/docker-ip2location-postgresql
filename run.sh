@@ -45,7 +45,7 @@ mkdir /_tmp
 cd /_tmp
 
 echo -n " > Download IP2Location database "
-	
+
 if [ "$IP_TYPE" == "IPV6" ]; then
 	wget -O ipv6.zip -q --user-agent="$USER_AGENT" "https://www.ip2location.com/download?token=${TOKEN}&code=${CODE}CSVIPV6" > /dev/null 2>&1
 
@@ -237,14 +237,14 @@ case "$CODE" in
 	;;
 esac
 
-RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from decimal(39,0) NOT NULL,ip_to decimal(39,0) NOT NULL,country_code character(2) NOT NULL,country_name varchar(64) NOT NULL '$FIELDS', CONSTRAINT idx_key PRIMARY KEY (ip_to));' ip2location_database 2>&1)"
+RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from bigint NOT NULL,ip_to bigint NOT NULL,country_code character(2) NOT NULL,country_name varchar(64) NOT NULL '"$FIELDS"', CONSTRAINT idx_key PRIMARY KEY (ip_to));' ip2location_database 2>&1)"
 
 [ -z "$(echo $RESPONSE | grep 'CREATE TABLE')" ] && error '[ERROR]' || success '[OK]'
 
 for CSV in $(ls | grep -i '.CSV'); do
 	echo -n " > [PostgreSQL] Load $CSV into database "
 	RESPONSE=$(sudo -u postgres psql -c 'COPY ip2location_database_tmp FROM '\''/_tmp/'$CSV''\'' WITH CSV QUOTE AS '\''"'\'';' ip2location_database 2>&1)
-	
+
 	[ -z "$(echo $RESPONSE | grep 'COPY')" ] && error '[ERROR]' || success '[OK]'
 done
 
@@ -257,9 +257,9 @@ RESPONSE="$(sudo -u postgres psql -c 'ALTER TABLE ip2location_database_tmp RENAM
 sudo -u postgres psql -d ip2location_database -c "CREATE FUNCTION inet_to_bigint(inet) RETURNS bigint AS \$\$ SELECT \$1 - '0.0.0.0'::inet \$\$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;" > /dev/null
 sudo -u postgres psql -d postgres -c "ALTER USER postgres WITH PASSWORD '$POSTGRESQL_PASSWORD';" > /dev/null
 
-echo " > Setup completed"
+echo "  > Setup completed"
 echo ""
-echo " > You can now connect to this PostgreSQL Server using:"
+echo "  > You can now connect to this PostgreSQL Server using:"
 echo ""
 echo "   psql -h HOST -p PORT --username=postgres"
 echo "   Password: $POSTGRESQL_PASSWORD"
@@ -273,5 +273,5 @@ echo "CODE=$CODE" >> /ip2location.conf
 echo "IP_TYPE=$IP_TYPE" >> /ip2location.conf
 
 cd /
-su postgres -c "/usr/lib/postgresql/13/bin/postgres -D /var/lib/postgresql/13/main -c config_file=/etc/postgresql/13/main/postgresql.conf 2> /var/log/postgresql/postgresql-main.log" >/dev/null 2>&1
+su postgres -c "/usr/lib/postgresql/15/bin/postgres -D /var/lib/postgresql/15/main -c config_file=/etc/postgresql/15/main/postgresql.conf 2> /var/log/postgresql/postgresql-main.log" >/dev/null 2>&1
 tail -f /dev/null
