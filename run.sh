@@ -237,7 +237,7 @@ case "$CODE" in
 	;;
 esac
 
-RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from bigint NOT NULL,ip_to bigint NOT NULL,country_code character(2) NOT NULL,country_name varchar(64) NOT NULL '"$FIELDS"', CONSTRAINT idx_key PRIMARY KEY (ip_to));' ip2location_database 2>&1)"
+RESPONSE="$(sudo -u postgres psql -c 'CREATE TABLE ip2location_database_tmp (ip_from decimal(39,0) NOT NULL,ip_to decimal(39,0) NOT NULL,country_code character(2) NOT NULL,country_name varchar(64) NOT NULL '"$FIELDS"', CONSTRAINT idx_key PRIMARY KEY (ip_to));' ip2location_database 2>&1)"
 
 [ -z "$(echo $RESPONSE | grep 'CREATE TABLE')" ] && error '[ERROR]' || success '[OK]'
 
@@ -254,7 +254,7 @@ RESPONSE="$(sudo -u postgres psql -c 'ALTER TABLE ip2location_database_tmp RENAM
 
 [ ! -z "$(echo $RESPONSE | grep 'ERROR')" ] &&  error '[ERROR]' || success '[OK]'
 
-sudo -u postgres psql -d ip2location_database -c "CREATE FUNCTION inet_to_bigint(inet) RETURNS bigint AS \$\$ SELECT \$1 - '0.0.0.0'::inet \$\$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION inet_to_bigint(inet) TO public;" > /dev/null
+sudo -u postgres psql -d ip2location_database -c "CREATE FUNCTION ip2int(inet) RETURNS bigint AS \$\$ SELECT \$1 - '0.0.0.0'::inet \$\$ LANGUAGE SQL strict immutable;GRANT execute ON FUNCTION ip2int(inet) TO public;" > /dev/null
 sudo -u postgres psql -d postgres -c "ALTER USER postgres WITH PASSWORD '$POSTGRESQL_PASSWORD';" > /dev/null
 
 echo "  > Setup completed"
@@ -273,5 +273,7 @@ echo "CODE=$CODE" >> /ip2location.conf
 echo "IP_TYPE=$IP_TYPE" >> /ip2location.conf
 
 cd /
-su postgres -c "/usr/lib/postgresql/15/bin/postgres -D /var/lib/postgresql/15/main -c config_file=/etc/postgresql/15/main/postgresql.conf 2> /var/log/postgresql/postgresql-main.log" >/dev/null 2>&1
+
+service postgresql start >/dev/null 2>&1
+
 tail -f /dev/null
