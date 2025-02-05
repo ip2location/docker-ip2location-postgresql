@@ -21,7 +21,7 @@ This is a pre-configured, ready-to-run PostgreSQL with IP2Location Geolocation d
 
    **Commercial Database**
 
-   * DB1, DB2, DB3, DB4, DB5, DB6, DB7, DB8, DB9, DB10, DB11, DB12, DB13, DB14, DB15, DB16, DB17, DB18, DB19, DB20, DB21, DB22, DB23, DB24, DB25
+   * DB1, DB2, DB3, DB4, DB5, DB6, DB7, DB8, DB9, DB10, DB11, DB12, DB13, DB14, DB15, DB16, DB17, DB18, DB19, DB20, DB21, DB22, DB23, DB24, DB25,DB26
 
    IP_TYPE - (Optional) Download IPv4 or IPv6 database. Script will download IPv4 database by default.
 
