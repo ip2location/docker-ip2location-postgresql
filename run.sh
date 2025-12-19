@@ -6,6 +6,13 @@ success() { echo -e "\e[92m$1\e[m"; }
 USER_AGENT="Mozilla/5.0+(compatible; IP2Location/PostgreSQL-Docker; https://hub.docker.com/r/ip2location/postgresql)"
 CODES=("DB1-LITE DB3-LITE DB5-LITE DB9-LITE DB11-LITE DB1 DB2 DB3 DB4 DB5 DB6 DB7 DB8 DB9 DB10 DB11 DB12 DB13 DB14 DB15 DB16 DB17 DB18 DB19 DB20 DB21 DB22 DB23 DB24 DB25 DB26")
 
+PSQL_VERSION=$(psql -V | awk '{ print $3 }' | cut -d. -f1)
+
+if [ -z "$(grep '0.0.0.0' /etc/postgresql/$PSQL_VERSION/main/pg_hba.conf)" ]; then
+	sed -i 's/^\#listen_addresses.*/listen_addresses = '\''*'\''/g' /etc/postgresql/$PSQL_VERSION/main/postgresql.conf
+	echo "host	all	all	0.0.0.0/0	md5" >> /etc/postgresql/$PSQL_VERSION/main/pg_hba.conf
+fi
+
 if [ -f /ip2location.conf ]; then
 	service postgresql start >/dev/null 2>&1
 	tail -f /dev/null
